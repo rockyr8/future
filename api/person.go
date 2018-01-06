@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"crypto/rand"
-    "encoding/base64"
+	"encoding/base64"
 	"github.com/gin-gonic/gin"
 )
 
