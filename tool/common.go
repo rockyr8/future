@@ -10,7 +10,7 @@ import (
 	"github.com/pquerna/ffjson/ffjson" //比"encoding/json" 快2倍多
 )
 
-
+//sql查询结果返回json字符串
 func DBResultTOJSON(sqlString string,args ...interface{}) (string, error) {
 	// param := make([]interface{}, len(args))
 	// for i := range args {
@@ -57,6 +57,7 @@ func DBResultTOJSON(sqlString string,args ...interface{}) (string, error) {
 	return string(jsonData), nil 
 }
 
+//sql查询结构返回map
 func DBResultDump(sqlString string,args ...interface{}) ([]map[string]interface{}, error) {
 	rows, err := db.SqlDB.Query(sqlString,args...)
 	if err != nil {
@@ -94,6 +95,15 @@ func DBResultDump(sqlString string,args ...interface{}) ([]map[string]interface{
 	return tableData, nil 
 }
 
+//字符串转json
+func StrToJSON(str []string) (string,error){
+
+	jsonData , err := ffjson.Marshal(str)
+	if err != nil {
+		return "",err
+	}
+	return string(jsonData),nil
+}
   
 
 // GenerateRandomBytes returns securely generated random bytes.

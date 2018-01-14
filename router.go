@@ -2,7 +2,7 @@ package main
 
 import (
 	. "future/api"
-	. "future/logic"
+	. "future/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,7 +14,8 @@ func initRouter() *gin.Engine {
 
 	//注册路由 person 例子
 	router.GET("/", IndexApi)
-	router.GET("/persons/:key", GetRedisValAPI)
+	router.GET("/redisV/:key", GetRedisValAPI)
+	router.GET("/redisT/:key", GetRedisValTimeAPI)
 	router.GET("/set", SetRedisValAPI)
 	// router.GET("/login/:key", AccountLoginApi)
 	

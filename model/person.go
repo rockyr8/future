@@ -3,7 +3,7 @@ package model
 import (
 	"fmt"
 	"time"
-	
+
 	db "future/database"
 )
 
@@ -44,13 +44,17 @@ func (p *Person) GetPersons() (persons []Person, err error) {
 	return
 }
 
-func GetRedisV(key string) (rat string) {
-	// rat = db.RedisGet(key)
+func GetRedisVTime(key string) (rat string) {
 	ms := int64(db.RedisClient.TTL(key).Val() / time.Second)
-	rat = fmt.Sprintf("%v",ms)
+	rat = fmt.Sprintf("%v", ms)
 	return
 }
 
-func SetRedisV(key string, val string, sec time.Duration) bool {	
-	return db.RedisSet(key, val, sec)==nil
+func GetRedisV(key string) (rat string) {
+	rat = db.RedisGet(key)
+	return
+}
+
+func SetRedisV(key string, val string, sec time.Duration) bool {
+	return db.RedisSet(key, val, sec) == nil
 }
