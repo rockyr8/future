@@ -67,6 +67,23 @@ func AddPersonApi(c *gin.Context) {
 	})
 }
 
+//test redis key查询有效时间
+func GetRedisValTimeAPI(c *gin.Context) {
+	key := c.Param("key")
+	val := GetRedisVTime(key)
+	var output=""
+	if key == "rjc"{
+		newval := strings.Split(val,"~")
+		for _,v := range newval {
+			output+=v+"\n"
+		}
+		c.String(http.StatusOK,output)
+		return
+	}
+	c.String(http.StatusOK,val)
+}
+
+//test redis key 的值
 func GetRedisValAPI(c *gin.Context) {
 	key := c.Param("key")
 	val := GetRedisV(key)

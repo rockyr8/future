@@ -15,12 +15,12 @@ func AccountLoginAPI(c *gin.Context) {
 	uname := c.PostForm("uname")
 	pwd := c.PostForm("pwd")
 	// fmt.Printf("uname=%s,pwd=%s",uname,pwd)
-	if uname=="" || pwd==""{
+	if uname == "" || pwd == "" {
 		c.String(http.StatusOK, "")
 		return
 	}
 	// str,err := GetAccount(uname,pwd)
-	str,err := AccountLogin(uname,pwd)
+	str, err := AccountLogin(uname, pwd)
 	if err != nil {
 		c.String(http.StatusOK, "")
 		return
@@ -32,17 +32,18 @@ func AccountLoginAPI(c *gin.Context) {
 func AccountLoginOutAPI(c *gin.Context) {
 	uid := c.PostForm("uid")
 	ctoken := c.PostForm("token")
-	err := AccountLoginOut(uid,ctoken)
-	if err != nil{
+	err := AccountLoginOut(uid, ctoken)
+	if err != nil {
 		c.String(http.StatusOK, "")
 		return
 	}
 	c.String(http.StatusOK, "SUCCESS")
 }
 
+//获取后台登录列表
 func GetAccountListAPI(c *gin.Context) {
-	str,err := GetAccountList()
-	if err != nil{
+	str, err := GetAccountList()
+	if err != nil {
 		c.String(http.StatusOK, "")
 		return
 	}
@@ -50,21 +51,11 @@ func GetAccountListAPI(c *gin.Context) {
 }
 
 //左边菜单导航接口 返回菜单名称和相对路径
-func GetMenuAPI(c *gin.Context){
+func GetMenuAPI(c *gin.Context) {
 	uid := c.PostForm("uid")
-	str,err := GetMenu(uid)
-	if err != nil{
+	str, err := GetMenu(uid)
+	if err != nil {
 		c.String(http.StatusOK, "")
-		return
-	}
-	c.String(http.StatusOK, str)
-}
-
-func GetMenu1API(c *gin.Context){
-	uid := "1"
-	str,err := GetMenu(uid)
-	if err != nil{
-		c.String(http.StatusOK, "[]")
 		return
 	}
 	c.String(http.StatusOK, str)
