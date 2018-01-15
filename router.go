@@ -39,7 +39,31 @@ func initRouter() *gin.Engine {
 	authorized = router.Group("/v2")
 	authorized.Use(AuthLogicMiddleWare)
 	{
+		/* region 系统用户管理*/
+		//查询用户
 		authorized.POST("/account", GetAccountListAPI)
+		//查询用户
+		authorized.POST("/account/detail", GetAccountDetailAPI)
+		//添加用户
+		authorized.POST("/account/add", OperateAccountAPI)
+		//修改用户
+		authorized.POST("/account/modify", OperateAccountAPI)
+		//导出
+		/* endregion 系统用户管理*/
+
+		/* region 系统权限管理*/
+
+		//角色列表
+		//角色添加
+		//角色修改
+
+		//菜单列表
+		//菜单添加
+		//菜单修改
+
+
+		/* endregion 系统用户管理*/
+
 	}
 	
 	// router.GET("/person/:id", GetPersonApi)

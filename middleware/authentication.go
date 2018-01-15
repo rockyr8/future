@@ -6,6 +6,7 @@ import (
 	"time"
 
 	db "future/database"
+	"future/common"
 
 	"github.com/gin-gonic/gin"
 )
@@ -72,17 +73,17 @@ func AuthLogicMiddleWare(c *gin.Context) {
 func renew(uid string, token string) {
 	ms := int64(db.RedisClient.TTL(uid).Val() / time.Second)
 	fmt.Println("renew", ms)
-	if ms < 300 && ms > 0 {
-		db.RedisSet(uid, token, 60*25)
+	if ms < int64(common.RemainRenewalTime) && ms > 0 {
+		db.RedisSet(uid, token, common.RenewalTime)
 		fmt.Println("ms=", ms)
-		GetAcceseAuth(uid, 25, 0)
+		GetAcceseAuth(uid, common.RenewalTime, 0)
 	}
 }
 
 //获取 or 删除高级访问权限 用于页面验证和按钮验证 operating 0=>获取 1=>删除
 func GetAcceseAuth(uid string, sec time.Duration, operating int) {
 	var url string
-	rows, err := db.SqlDB.Query(`SELECT DISTINCT url FROM go_menu a LEFT JOIN go_menu_role b ON a.id=b.menuID LEFT JOIN go_account c ON b.roleID=c.roleID
+	rows, err := db.SqlDB.Query(`SELECT DISTINCT authurl FROM go_menu a LEFT JOIN go_menu_role b ON a.id=b.menuID LEFT JOIN go_account c ON b.roleID=c.roleID
 		WHERE a.valid=0 AND c.id=? ORDER BY a.sort DESC`, uid)
 	defer rows.Close()
 	if err != nil {
@@ -93,9 +94,9 @@ func GetAcceseAuth(uid string, sec time.Duration, operating int) {
 	var delurl []string
 	for rows.Next() {
 		rows.Scan(&url)
-		//高级权限加入redis，用于接口验证。默认存储25分钟 每15分钟进行一次续租，续租时间25分钟。
+		//高级权限加入redis，用于接口验证。默认存储20分钟 每15分钟进行一次续租，续租时间25分钟。
 		if operating == 0 {
-			db.RedisSet(uid+url, "1", 60*sec)
+			db.RedisSet(uid+url, "1", sec)
 		} else {
 			delurl = append(delurl, uid+url) //注销登录时，需要删除的url
 		}

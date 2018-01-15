@@ -9,7 +9,20 @@ import (
 	. "future/middleware"
 	"future/tool"
 	db "future/database"
+	"future/common"
 )
+
+//用户信息
+type Account struct {
+	Uid      string
+	UserName string
+	PassWD   string
+	NickName string
+	Phone    string
+	Tel      string
+	RoleID   string //角色ID
+	Valid    string //是否启用
+}
 
 //用户登录 成功则产生token 用于AuthMiddleWare和AuthLogicMiddleWare中间件验证 一个用户对应2个redis key value
 func AccountLogin(uname, pwd string) (rat string, err error) {
@@ -30,7 +43,7 @@ func AccountLogin(uname, pwd string) (rat string, err error) {
 	}
 
 	//获取高级权限
-	go GetAcceseAuth(uid, 20, 0)
+	go GetAcceseAuth(uid, common.RedisStorageTime, 0)
 
 	//生成原始 token
 	token, err = tool.GenerateRandomString(20)
@@ -43,7 +56,7 @@ func AccountLogin(uname, pwd string) (rat string, err error) {
 	token += uid
 	// fmt.Println(token)
 	//加入到redis里面，用于基本验证。默认存储20分钟。
-	if err := db.RedisSet(uid, token, 60*20); err != nil {
+	if err := db.RedisSet(uid, token, common.RedisStorageTime); err != nil {
 		return "", err
 	}
 
@@ -59,7 +72,7 @@ func AccountLoginOut(uid, ctoken string) error {
 		token := db.RedisGet(uid)
 		if token == ctoken {
 			err := db.RedisDel(uid)
-			err = db.RedisDel(uid+"menu")
+			err = db.RedisDel(uid + "menu")
 			// err := db.RedisSet(uid,"",0)	
 			go GetAcceseAuth(uid, 0, 1)
 			return err
@@ -71,27 +84,53 @@ func AccountLoginOut(uid, ctoken string) error {
 }
 
 //获取用户信息
-func GetAccountList() (rat string, err error) {
+func (a *Account) GetList() (rat string, err error) {
 	rat, err = tool.DBResultTOJSON("SELECT * FROM go_account")
 	return
 }
 
-//获取角色列表
+//添加用户
+func (a *Account) Add() (id int64, err error) {
+	sql := "INSERT INTO go_account (uname,pwd,nickname,phone,tel,roleID,valid,createtime) VALUES (?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()))"
+	rs, err := db.SqlDB.Exec(sql, a.UserName, a.PassWD, a.NickName, a.Phone, a.Tel, a.RoleID, a.Valid)
+	// rs, err := db.SqlDB.Exec("call test1(?, ?)", p.FirstName, p.LastName)
+	if err != nil {
+		return
+	}
+	id, err = rs.LastInsertId()
+	return
+}
 
-//
+//修改用户
+func (a *Account) Modify() (rows int64, err error) {
+	sql := "UPDATE go_account SET nickname=?,phone=?,tel=?,roleID=?,valid=?,lastModifyTime=UNIX_TIMESTAMP(NOW()) WHERE id=?"
+	rs, err := db.SqlDB.Exec(sql, a.NickName, a.Phone, a.Tel, a.RoleID, a.Valid, a.Uid)
+	// rs, err := db.SqlDB.Exec("call test1(?, ?)", p.FirstName, p.LastName)
+	if err != nil {
+		return
+	}
+	rows, err = rs.RowsAffected()
+	return
+}
+
+//得到一天用户的信息记录
+func (a *Account) GetDetail() (rat string, err error) {
+	rat, err = tool.DBResultTOJSON("SELECT nickname,phone,tel,roleID FROM go_account WHERE id=?", a.Uid)
+	return
+}
 
 //获取用户左边菜单
-func GetMenu(uid string) (string, error) {
+func (a *Account) GetMenu() (string, error) {
 
-	if rat := db.RedisGet(uid + "menu"); rat == "" {
+	if rat := db.RedisGet(a.Uid + "menu"); rat == "" {
 
 		str, err := tool.DBResultTOJSON(`SELECT DISTINCT a.nickname,url FROM go_menu a LEFT JOIN go_menu_role b ON a.id=b.menuID LEFT JOIN go_account c ON b.roleID=c.roleID
-			WHERE a.valid=0 AND c.id=? ORDER BY a.sort DESC`, uid)
+			WHERE a.valid=0 AND c.id=? ORDER BY a.sort DESC`, a.Uid)
 		//用户菜单存入redis中，减少数据库IO
 		if err != nil {
 			return "", err
 		}
-		db.RedisSet(uid+"menu", str, 60*25) //存25分钟
+		db.RedisSet(a.Uid+"menu", str, common.RedisStorageTime)
 		return str, nil
 
 	} else {
