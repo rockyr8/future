@@ -53,7 +53,7 @@ func GetAccountListAPI(c *gin.Context) {
 
 //添加 or 修改 用户
 func OperateAccountAPI(c *gin.Context) {
-	uid := c.PostForm("uid")
+	uid := c.PostForm("userid")
 	userName := c.PostForm("username")
 	passWD := c.PostForm("pwd")
 	nickName := c.PostForm("nickname")
@@ -82,7 +82,7 @@ func OperateAccountAPI(c *gin.Context) {
 
 //获取单个用户详情
 func GetAccountDetailAPI(c *gin.Context) {
-	uid := c.PostForm("uid")
+	uid := c.PostForm("userid")
 	a := Account{Uid: uid}
 	str, err := a.GetDetail()
 	if err != nil {
@@ -91,6 +91,19 @@ func GetAccountDetailAPI(c *gin.Context) {
 	}
 	c.String(http.StatusOK, str)
 }
+
+//修改密码
+func ModifyPwdAPI(c *gin.Context){
+	uid := c.PostForm("uid")
+	oldpwd := c.PostForm("oldpwd")
+	newpwd := c.PostForm("newpwd")
+	a := Account{Uid:uid,PassWD:newpwd}
+	str := a.ModifyPwd(oldpwd)
+	if str == "0" {
+		c.String(http.StatusOK, "SUCCESS")
+	}
+}
+
 
 //左边菜单导航接口 返回菜单名称和相对路径
 func GetMenuAPI(c *gin.Context) {
@@ -103,3 +116,7 @@ func GetMenuAPI(c *gin.Context) {
 	}
 	c.String(http.StatusOK, str)
 }
+
+
+
+

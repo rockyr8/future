@@ -25,6 +25,7 @@ func AuthMiddleWare(c *gin.Context) {
 	// fmt.Printf("uid is %s, token is %s\n", uid, ctoken)
 	if uid != "" && ctoken != "" {
 		token := db.RedisGet(uid)
+		//fmt.Printf("00 uid is %s, ctoken is %s, token is %s\n", uid, ctoken,token)
 		if token == ctoken {
 			//开一个协程进行续租验证
 			go renew(uid, token)
@@ -48,14 +49,15 @@ func AuthLogicMiddleWare(c *gin.Context) {
 	// c.Request.RequestURI 返回  /v2/login
 	uid := c.Request.FormValue("uid")
 	ctoken := c.Request.FormValue("token")
-	// fmt.Printf("uid is %s, token is %s\n", uid, ctoken)
+	 //fmt.Printf("uid is %s, token is %s\n", uid, ctoken)
 	if uid != "" && ctoken != "" {
 		token := db.RedisGet(uid)
+		//fmt.Printf("uid is %s, ctoken is %s, token is %s\n", uid, ctoken,token)
 		if token == ctoken {
-			// fmt.Printf("uid is %s, token is %s\n", uid, ctoken)
+			 //fmt.Printf("uid is %s, ctoken is %s\n", uid, ctoken)
 			// 这里第二步验证，验证url是否在里面
 			if url := db.RedisGet(uid + c.Request.RequestURI); url != "" {
-				// fmt.Printf("url is %s,urlval is %s\n", uid+c.Request.RequestURI,url)
+				 //fmt.Printf("url is %s,urlval is %s\n", uid+c.Request.RequestURI,url)
 				//开一个协程进行续租验证
 				go renew(uid, token)
 				return
@@ -84,7 +86,7 @@ func renew(uid string, token string) {
 func GetAcceseAuth(uid string, sec time.Duration, operating int) {
 	var url string
 	rows, err := db.SqlDB.Query(`SELECT DISTINCT authurl FROM go_menu a LEFT JOIN go_menu_role b ON a.id=b.menuID LEFT JOIN go_account c ON b.roleID=c.roleID
-		WHERE a.valid=0 AND c.id=? ORDER BY a.sort DESC`, uid)
+		WHERE a.valid=1 AND c.id=? ORDER BY a.sort DESC`, uid)
 	defer rows.Close()
 	if err != nil {
 		//加入错误日志

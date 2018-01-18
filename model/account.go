@@ -54,7 +54,7 @@ func AccountLogin(uname, pwd string) (rat string, err error) {
 	}
 	//拼接token 保证唯一性
 	token += uid
-	// fmt.Println(token)
+	 fmt.Println(token)
 	//加入到redis里面，用于基本验证。默认存储20分钟。
 	if err := db.RedisSet(uid, token, common.RedisStorageTime); err != nil {
 		return "", err
@@ -115,8 +115,28 @@ func (a *Account) Modify() (rows int64, err error) {
 
 //得到一天用户的信息记录
 func (a *Account) GetDetail() (rat string, err error) {
-	rat, err = tool.DBResultTOJSON("SELECT nickname,phone,tel,roleID FROM go_account WHERE id=?", a.Uid)
+	rat, err = tool.DBResultTOJSON("SELECT uname,nickname,phone,tel,roleID FROM go_account WHERE id=?", a.Uid)
 	return
+}
+
+//修改密码
+func (a *Account) ModifyPwd(oldpwd string) (rat string){
+	sql := "call modifypwd(?,?,?)"
+	rows, err := db.SqlDB.Query(sql,a.Uid,oldpwd,a.PassWD)
+	defer rows.Close()
+
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		rows.Scan(&rat)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+	return
+
 }
 
 //获取用户左边菜单
@@ -124,8 +144,8 @@ func (a *Account) GetMenu() (string, error) {
 
 	if rat := db.RedisGet(a.Uid + "menu"); rat == "" {
 
-		str, err := tool.DBResultTOJSON(`SELECT DISTINCT a.nickname,url FROM go_menu a LEFT JOIN go_menu_role b ON a.id=b.menuID LEFT JOIN go_account c ON b.roleID=c.roleID
-			WHERE a.valid=0 AND c.id=? ORDER BY a.sort DESC`, a.Uid)
+		str, err := tool.DBResultTOJSON(`SELECT DISTINCT d.nickname AS fathername,d.url AS fatherurl,d.ico,a.nickname,a.url FROM go_menu a LEFT JOIN go_menu_role b ON a.id=b.menuID LEFT JOIN go_account c ON b.roleID=c.roleID LEFT JOIN go_menu_class d ON a.classID=d.id
+WHERE a.valid=1 AND a.classID>0 AND c.id=? ORDER BY a.classID,a.sort DESC`, a.Uid)
 		//用户菜单存入redis中，减少数据库IO
 		if err != nil {
 			return "", err
@@ -138,6 +158,7 @@ func (a *Account) GetMenu() (string, error) {
 	}
 
 }
+
 
 //test
 func GetAccount1(uname, pwd string) (string, error) {

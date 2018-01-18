@@ -48,10 +48,19 @@ func initRouter() *gin.Engine {
 		authorized.POST("/account/add", OperateAccountAPI)
 		//修改用户
 		authorized.POST("/account/modify", OperateAccountAPI)
-		//导出
+		//修改密码
+		authorized.POST("/account/modifypwd", ModifyPwdAPI)
 		/* endregion 系统用户管理*/
 
+
 		/* region 系统权限管理*/
+
+		//主菜单列表
+		authorized.POST("/menu/menulist", GetMainMenuListAPI)
+		//主菜单新增
+		authorized.POST("/menu/add", OperateMainMenuAPI)
+		//主菜单修改
+		authorized.POST("/menu/modify", OperateMainMenuAPI)
 
 		//角色列表
 		//角色添加
