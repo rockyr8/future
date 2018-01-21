@@ -62,9 +62,25 @@ func initRouter() *gin.Engine {
 		//主菜单修改
 		authorized.POST("/menu/modify", OperateMainMenuAPI)
 
+		//子菜单列表
+		authorized.POST("/menu/menulistc", GetChildMenuListAPI)
+		//子菜单新增
+		authorized.POST("/menu/addc", OperateChildMenuAPI)
+		//子菜单修改
+		authorized.POST("/menu/modifyc", OperateChildMenuAPI)
+
 		//角色列表
+		authorized.POST("/role", GetRoleListAPI)
 		//角色添加
+		authorized.POST("/role/add", OperateRoleAPI)
 		//角色修改
+		authorized.POST("/role/modify", OperateRoleAPI)
+		//角色菜单列表
+		authorized.POST("/role/menu", GetRoleMenuListAPI)
+		//修改角色菜单
+		authorized.POST("/role/menu/modify", ModifyRoleMenuAPI)
+
+
 
 		//菜单列表
 		//菜单添加
