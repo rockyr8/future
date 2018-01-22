@@ -80,14 +80,18 @@ func initRouter() *gin.Engine {
 		//修改角色菜单
 		authorized.POST("/role/menu/modify", ModifyRoleMenuAPI)
 
-
-
-		//菜单列表
-		//菜单添加
-		//菜单修改
-
-
 		/* endregion 系统用户管理*/
+
+		/* region 玩家管理*/
+
+		//玩家列表
+		authorized.POST("/player", GetPlayerListAPI)
+		//玩家禁用，启用
+		authorized.POST("/player/disable", DisablePlayerAPI)
+		//玩家上分操作
+		authorized.POST("/player/addpoints", AddMoney)
+
+		/* endregion 玩家管理*/
 
 	}
 	

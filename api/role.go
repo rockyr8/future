@@ -68,3 +68,4 @@ func ModifyRoleMenuAPI(c *gin.Context) {
 	}
 	c.String(http.StatusOK, "SUCCESS")
 }
+
