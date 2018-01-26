@@ -21,10 +21,10 @@ func init() {
 			MaxRetries:   3,
 			DialTimeout:  5 * time.Second,
 			WriteTimeout: 3 * time.Second,
-			PoolSize:     2000,
+			PoolSize:     2000,//在 Redis2.4 中，最大连接数是被直接硬编码在代码里面的，而在2.6版本中这个值变成可配置的。maxclients 的默认值是 10000，你也可以在 redis.conf 中对这个值进行修改
 			PoolTimeout:  0,
 			IdleTimeout:  0,
-			DB:           3,
+			DB:           3,//选择db3
 		})
 
 		pong, err := client.Ping().Result()
