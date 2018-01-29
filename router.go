@@ -84,7 +84,7 @@ func initRouter() *gin.Engine {
 
 		/* region 玩家管理*/
 
-		//玩家列表
+		//玩家列表 kimmidoll
 		authorized.POST("/player", GetPlayerListAPI)
 		//玩家禁用，启用
 		authorized.POST("/player/disable", DisablePlayerAPI)
