@@ -1,4 +1,4 @@
-//角色管理
+//角色管理 kimmidoll
 package model
 
 import (
