@@ -96,7 +96,18 @@ func initRouter() *gin.Engine {
 
 		/* region 統計*/
 
-		authorized.POST("/dashboard", GetDashboardListAPI)
+		//authorized.POST("/dashboard", GetDashboardListAPI)
+		authorized.POST("/dashboard/newplayer", GetDashboardNewAPI)
+		authorized.POST("/dashboard/loginplayer", GetDashboardLoginAPI)
+		authorized.POST("/dashboard/logincount", GetDashboardLogincountAPI)
+		authorized.POST("/dashboard/onlineplayer", GetDashboardOnlineAPI)
+		authorized.POST("/dashboard/signplayer", GetDashboardSignAPI)
+		authorized.POST("/dashboard/coreplayer", GetDashboardCoreAPI)
+		authorized.POST("/dashboard/onlinetime", GetDashboardOnlineTimeAPI)
+		authorized.POST("/dashboard/crecharge", GetDashboardCRechargeAPI)
+		authorized.POST("/dashboard/trecharge", GetDashboardTRechargeAPI)
+		authorized.POST("/dashboard/jackport", GetDashboardJackpotAPI)
+		authorized.POST("/dashboard/balance", GetDashboardBalanceAPI)
 
 		/* endregion 統計*/
 
