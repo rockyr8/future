@@ -18,7 +18,7 @@ func initRouter() *gin.Engine {
 	router.GET("/redisT/:key", GetRedisValTimeAPI)
 	router.GET("/set", SetRedisValAPI)
 	// router.GET("/login/:key", AccountLoginApi)
-	
+
 	//添加全局中间件(在这行代码之前设置的路由规则,不经过g该中间件) => 屏蔽跨域错误 Access-Control-Allow-Origin
 	router.Use(OpenMiddleWare)
 	//注册路由
@@ -93,8 +93,26 @@ func initRouter() *gin.Engine {
 
 		/* endregion 玩家管理*/
 
+
+		/* region 統計*/
+
+		//authorized.POST("/dashboard", GetDashboardListAPI)
+		authorized.POST("/dashboard/newplayer", GetDashboardNewAPI)
+		authorized.POST("/dashboard/loginplayer", GetDashboardLoginAPI)
+		authorized.POST("/dashboard/logincount", GetDashboardLogincountAPI)
+		authorized.POST("/dashboard/onlineplayer", GetDashboardOnlineAPI)
+		authorized.POST("/dashboard/signplayer", GetDashboardSignAPI)
+		authorized.POST("/dashboard/coreplayer", GetDashboardCoreAPI)
+		authorized.POST("/dashboard/onlinetime", GetDashboardOnlineTimeAPI)
+		authorized.POST("/dashboard/crecharge", GetDashboardCRechargeAPI)
+		authorized.POST("/dashboard/trecharge", GetDashboardTRechargeAPI)
+		authorized.POST("/dashboard/jackport", GetDashboardJackpotAPI)
+		authorized.POST("/dashboard/balance", GetDashboardBalanceAPI)
+
+		/* endregion 統計*/
+
 	}
-	
+
 	// router.GET("/person/:id", GetPersonApi)
 	// router.PUT("/person/:id", ModPersonApi)
 	// router.DELETE("/person/:id", DelPersonApi)
