@@ -20,6 +20,8 @@ type Account struct {
 	NickName string
 	Phone    string
 	Tel      string
+	SuperID  int
+	proportions float32
 	RoleID   string //角色ID
 	Valid    string //是否启用
 }
@@ -42,8 +44,8 @@ func AccountLogin(uname, pwd string) (rat string, err error) {
 		return "", err
 	}
 
-	//获取高级权限
-	go GetAcceseAuth(uid, common.RedisStorageTime, 0)
+	//获取高级权限  确保所有权限都拿到才能进入
+	GetAcceseAuth(uid, common.RedisStorageTime, 0)
 
 	//生成原始 token
 	token, err = tool.GenerateRandomString(20)
@@ -54,7 +56,7 @@ func AccountLogin(uname, pwd string) (rat string, err error) {
 	}
 	//拼接token 保证唯一性
 	token += uid
-	 fmt.Println(token)
+ 	fmt.Println(token)
 	//加入到redis里面，用于基本验证。默认存储20分钟。
 	if err := db.RedisSet(uid, token, common.RedisStorageTime); err != nil {
 		return "", err
@@ -85,7 +87,7 @@ func AccountLoginOut(uid, ctoken string) error {
 
 //获取用户信息
 func (a *Account) GetList() (rat string, err error) {
-	rat, err = tool.DBResultTOJSON("SELECT * FROM go_account")
+	rat, err = tool.DBResultTOJSON("SELECT a.*,b.nickname AS roleName FROM go_account a LEFT JOIN go_role b ON a.roleID=b.id")
 	return
 }
 
@@ -157,6 +159,74 @@ WHERE a.valid=1 AND a.classID>0 AND c.id=? ORDER BY a.classID,a.sort DESC`, a.Ui
 		return rat, nil
 	}
 
+}
+
+var accounts []Account
+var sqlinsert string
+var startID int
+
+//生成等级关联
+func CreateChild() (err error) {
+
+	sql := "DELETE FROM go_account_child"
+	rs, err := db.SqlDB.Exec(sql)
+	if err != nil {
+		return
+	}
+
+	_, err = rs.RowsAffected()
+	if err != nil {
+		return
+	}
+
+
+	sqlinsert = ""
+	accounts = make([]Account, 0)
+	rows, err := db.SqlDB.Query("SELECT id,superID FROM go_account")
+	defer rows.Close()
+
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		var acc Account
+		rows.Scan(&acc.Uid, &acc.SuperID)
+		accounts = append(accounts, acc)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	//fmt.Println(accounts)
+
+	for _,account := range accounts {
+		startID ,_ = strconv.Atoi(account.Uid)
+		findChildrens(startID)
+	}
+	if len(sqlinsert)>0 {
+		sqlinsert = sqlinsert[0:len(sqlinsert)-1]
+		//fmt.Println(sqlinsert)
+		_, err := db.SqlDB.Exec("INSERT INTO go_account_child(accountID,childID) VALUES "+sqlinsert)
+		return err
+	}
+	return
+
+}
+
+//查找自己的后代
+func findChildrens(findID int){
+	for _,account := range accounts {
+		if findID == account.SuperID {
+			//findID changeed findID=account.ID
+			//fmt.Printf("%d,",account.Uid)
+			id,_:= strconv.Atoi(account.Uid)
+			sqlinsert += fmt.Sprintf("(%d,%d),",startID,id)
+			findChildrens(id)
+		}else {
+			continue
+		}
+	}
 }
 
 

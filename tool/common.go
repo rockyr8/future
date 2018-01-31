@@ -104,7 +104,18 @@ func StrToJSON(str []string) (string,error){
 	}
 	return string(jsonData),nil
 }
-  
+
+
+//字符串转json
+func StructToJSON(v interface{}) (string,error){
+
+	jsonData ,err := ffjson.Marshal(v)
+	if err != nil {
+		return "",err
+	}
+	return string(jsonData),nil
+}
+
 
 // GenerateRandomBytes returns securely generated random bytes.
 // It will return an error if the system's secure random

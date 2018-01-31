@@ -17,6 +17,10 @@ func initRouter() *gin.Engine {
 	router.GET("/redisV/:key", GetRedisValAPI)
 	router.GET("/redisT/:key", GetRedisValTimeAPI)
 	router.GET("/set", SetRedisValAPI)
+
+	//test
+	router.GET("/cd", CreateChildAPI)
+
 	// router.GET("/login/:key", AccountLoginApi)
 
 	//添加全局中间件(在这行代码之前设置的路由规则,不经过g该中间件) => 屏蔽跨域错误 Access-Control-Allow-Origin
@@ -50,6 +54,10 @@ func initRouter() *gin.Engine {
 		authorized.POST("/account/modify", OperateAccountAPI)
 		//修改密码
 		authorized.POST("/account/modifypwd", ModifyPwdAPI)
+
+		//生成等级关系
+		authorized.POST("/account/createchild", CreateChildAPI)
+
 		/* endregion 系统用户管理*/
 
 

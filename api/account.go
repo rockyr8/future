@@ -62,7 +62,7 @@ func OperateAccountAPI(c *gin.Context) {
 	roleID := c.PostForm("roleID")
 	valid := c.PostForm("valid")
 	operate := c.PostForm("operate")
-	a := Account{uid, userName, passWD, nickName, phone, tel, roleID, valid}
+	a := Account{Uid:uid, UserName:userName, PassWD:passWD, NickName:nickName, Phone:phone, Tel:tel, RoleID:roleID, Valid:valid}
 
 	var id int64
 	var err error
@@ -115,6 +115,16 @@ func GetMenuAPI(c *gin.Context) {
 		return
 	}
 	c.String(http.StatusOK, str)
+}
+
+//左边菜单导航接口 返回菜单名称和相对路径
+func CreateChildAPI(c *gin.Context) {
+	err := CreateChild()
+	if err != nil {
+		c.String(http.StatusOK, err.Error())
+		return
+	}
+	c.String(http.StatusOK, "SUCCESS")
 }
 
 
