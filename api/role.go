@@ -11,9 +11,9 @@ import (
 
 //获取list
 func GetRoleListAPI(c *gin.Context) {
-	id := c.PostForm("id")
-	r := Role{ID:id}
-	str, err := r.GetList()
+	uid := c.PostForm("uid")
+	r := Role{}
+	str, err := r.GetList(uid)
 	if err != nil {
 		c.String(http.StatusOK, "")
 		return

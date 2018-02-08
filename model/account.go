@@ -10,32 +10,57 @@ import (
 	"future/tool"
 	db "future/database"
 	"future/common"
+	"strings"
 )
 
 //用户信息
 type Account struct {
-	Uid      string
-	UserName string
-	PassWD   string
-	NickName string
-	Phone    string
-	Tel      string
-	SuperID  int
-	proportions float32
-	RoleID   string //角色ID
-	Valid    string //是否启用
+	ID          int
+	Uid         string
+	UserName    string
+	PassWD      string
+	NickName    string
+	Phone       string
+	Tel         string
+	SuperID     int
+	Proportions float64 //分成比例
+	RoleID      string  //角色ID
+	Valid       string  //是否启用
+	Logintime   string  //登录时间，范围
+	Createtime  string  //注册时间，范围
 }
+
+//账户银行表
+type AccountBank struct {
+	Account
+	AccountID      string
+	AccountName    string
+	AccountCardNum string
+	OpenBank       string
+	BranchBank     string
+	Balance        float64
+}
+
+//销售表，分成直接来源
+type SaleInfo struct {
+	Account
+	AccountID int
+	SaleAmt   float64
+}
+
+//销售集合
+var saleinfos []SaleInfo
 
 //用户登录 成功则产生token 用于AuthMiddleWare和AuthLogicMiddleWare中间件验证 一个用户对应2个redis key value
 func AccountLogin(uname, pwd string) (rat string, err error) {
-	var uid, nickname, token string
-	rows, err := db.SqlDB.Query("SELECT id,nickname FROM go_account WHERE uname=? AND pwd=? LIMIT 1", uname, pwd)
+	var uid, nickname, roleID, token string
+	rows, err := db.SqlDB.Query("SELECT id,nickname,roleID FROM go_account WHERE uname=? AND pwd=? LIMIT 1", uname, pwd)
 	defer rows.Close()
 	if err != nil {
 		return "", err
 	}
 	for rows.Next() {
-		rows.Scan(&uid, &nickname)
+		rows.Scan(&uid, &nickname, &roleID)
 	}
 	if err = rows.Err(); err != nil {
 		return "", err
@@ -56,14 +81,28 @@ func AccountLogin(uname, pwd string) (rat string, err error) {
 	}
 	//拼接token 保证唯一性
 	token += uid
- 	fmt.Println(token)
+	//fmt.Println(token)
 	//加入到redis里面，用于基本验证。默认存储20分钟。
 	if err := db.RedisSet(uid, token, common.RedisStorageTime); err != nil {
+		return "", err
+	}
+	//加入角色ID
+	if err := db.RedisSet(uid+"role", roleID, common.RedisStorageTime); err != nil {
 		return "", err
 	}
 
 	rat = fmt.Sprintf(`[{"uid":"%s","token":"%s"}]`, uid, token)
 	// fmt.Println(rat)
+	go updateLogintime(uid) //更新登录时间
+	return
+}
+
+func updateLogintime(uid string) {
+	sql := "UPDATE go_account SET lastlogintime=UNIX_TIMESTAMP(NOW()) WHERE id=?"
+	_, err := db.SqlDB.Exec(sql, uid)
+	if err != nil {
+		return
+	}
 	return
 }
 
@@ -87,26 +126,67 @@ func AccountLoginOut(uid, ctoken string) error {
 
 //获取用户信息
 func (a *Account) GetList() (rat string, err error) {
-	rat, err = tool.DBResultTOJSON("SELECT a.*,b.nickname AS roleName FROM go_account a LEFT JOIN go_role b ON a.roleID=b.id")
+	var args []interface{}
+	sql := "SELECT a.*,b.nickname AS roleName,IFNULL((SELECT nickname FROM go_account WHERE id=a.superID),'-') AS supername FROM go_account_child gc LEFT JOIN go_account a ON gc.childID=a.id LEFT JOIN go_role b ON a.roleID=b.id WHERE gc.accountID=? "
+	args = append(args, a.Uid)
+	if a.UserName != "" {
+		sql += " and a.uname=?"
+		args = append(args, a.UserName)
+	}
+	if a.NickName != "" {
+		sql += " and a.nickname=?"
+		args = append(args, a.NickName)
+	}
+	if a.Phone != "" {
+		sql += " and a.phone=?"
+		args = append(args, a.Phone)
+	}
+	if a.Tel != "" {
+		sql += " and a.tel=?"
+		args = append(args, a.Tel)
+	}
+	if a.Valid != "" {
+		sql += " and a.Valid=?"
+		args = append(args, a.Tel)
+	}
+	if a.RoleID != "" {
+		sql += " and a.roleID=?"
+		args = append(args, a.RoleID)
+	}
+	if a.Logintime != "" {
+		sql += " and a.lastLoginTime BETWEEN ? AND ?"
+		timerange := strings.Split(a.Logintime, "~")
+		args = append(args, timerange[0], timerange[1])
+	}
+	if a.Createtime != "" {
+		sql += " and a.createtime BETWEEN ? AND ?"
+		timerange := strings.Split(a.Createtime, "~")
+		args = append(args, timerange[0], timerange[1])
+	}
+	rat, err = tool.DBResultTOJSON(sql, args...)
 	return
 }
 
 //添加用户
 func (a *Account) Add() (id int64, err error) {
-	sql := "INSERT INTO go_account (uname,pwd,nickname,phone,tel,roleID,valid,createtime) VALUES (?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()))"
-	rs, err := db.SqlDB.Exec(sql, a.UserName, a.PassWD, a.NickName, a.Phone, a.Tel, a.RoleID, a.Valid)
+	sql := "INSERT INTO go_account (uname,pwd,nickname,phone,tel,roleID,valid,createtime,proportions,superID) VALUES (?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),?,?)"
+	rs, err := db.SqlDB.Exec(sql, a.UserName, a.PassWD, a.NickName, a.Phone, a.Tel, a.RoleID, a.Valid, a.Proportions, a.ID)
 	// rs, err := db.SqlDB.Exec("call test1(?, ?)", p.FirstName, p.LastName)
 	if err != nil {
 		return
 	}
 	id, err = rs.LastInsertId()
+	if id > 0 {
+		addBank(a.Uid) //添加银行信息
+		CreateChild()  //更新子账户
+	}
 	return
 }
 
 //修改用户
 func (a *Account) Modify() (rows int64, err error) {
-	sql := "UPDATE go_account SET nickname=?,phone=?,tel=?,roleID=?,valid=?,lastModifyTime=UNIX_TIMESTAMP(NOW()) WHERE id=?"
-	rs, err := db.SqlDB.Exec(sql, a.NickName, a.Phone, a.Tel, a.RoleID, a.Valid, a.Uid)
+	sql := "UPDATE go_account SET nickname=?,phone=?,tel=?,roleID=?,valid=?,lastModifyTime=UNIX_TIMESTAMP(NOW()),proportions=? WHERE id=?"
+	rs, err := db.SqlDB.Exec(sql, a.NickName, a.Phone, a.Tel, a.RoleID, a.Valid, a.Proportions, a.Uid)
 	// rs, err := db.SqlDB.Exec("call test1(?, ?)", p.FirstName, p.LastName)
 	if err != nil {
 		return
@@ -115,16 +195,53 @@ func (a *Account) Modify() (rows int64, err error) {
 	return
 }
 
-//得到一天用户的信息记录
+//得到一个用户的信息记录
 func (a *Account) GetDetail() (rat string, err error) {
-	rat, err = tool.DBResultTOJSON("SELECT uname,nickname,phone,tel,roleID FROM go_account WHERE id=?", a.Uid)
+	rat, err = tool.DBResultTOJSON("SELECT uname,nickname,phone,tel,roleID,proportions FROM go_account WHERE id=?", a.Uid)
+	return
+}
+
+//得到一个用户银行信息记录
+func (a *AccountBank) GetBankDetail() (rat string, err error) {
+	rat, err = tool.DBResultTOJSON("SELECT * FROM go_account_bank WHERE accountID=?", a.AccountID)
+	return
+}
+
+//添加银行信息
+func addBank(uid string) (err error) {
+	sql := "INSERT INTO go_account_bank (accountID) VALUES(?)"
+	_, err = db.SqlDB.Exec(sql, uid)
+	if err != nil {
+		return
+	}
+	return
+}
+
+//修改银行信息
+func (a *AccountBank) UpdateBank() (rows int64, err error) {
+	sql := "UPDATE go_account_bank SET accountName=?,accountCardNum=?,openBank=?,branchBank=? WHERE accountID=?"
+	rs, err := db.SqlDB.Exec(sql, a.AccountName, a.AccountCardNum, a.OpenBank, a.BranchBank, a.AccountID)
+	if err != nil {
+		return
+	}
+	rows, err = rs.RowsAffected()
+	if err != nil {
+		return
+	}
+
+	sql = "UPDATE go_account SET nickname=?,phone=?,tel=?,lastModifyTime=UNIX_TIMESTAMP(NOW()) WHERE id=?"
+	rs, err = db.SqlDB.Exec(sql, a.Account.NickName, a.Account.Phone, a.Account.Tel, a.AccountID)
+	if err != nil {
+		return
+	}
+	rows, err = rs.RowsAffected()
 	return
 }
 
 //修改密码
-func (a *Account) ModifyPwd(oldpwd string) (rat string){
+func (a *Account) ModifyPwd(oldpwd string) (rat string) {
 	sql := "call modifypwd(?,?,?)"
-	rows, err := db.SqlDB.Query(sql,a.Uid,oldpwd,a.PassWD)
+	rows, err := db.SqlDB.Query(sql, a.Uid, oldpwd, a.PassWD)
 	defer rows.Close()
 
 	if err != nil {
@@ -161,11 +278,12 @@ WHERE a.valid=1 AND a.classID>0 AND c.id=? ORDER BY a.classID,a.sort DESC`, a.Ui
 
 }
 
+//使用全局变量前，请重新赋零值。不赋值，会沿用上次使用的值。
 var accounts []Account
 var sqlinsert string
 var startID int
 
-//生成等级关联
+//生成等级关联 下属账户
 func CreateChild() (err error) {
 
 	sql := "DELETE FROM go_account_child"
@@ -179,7 +297,6 @@ func CreateChild() (err error) {
 		return
 	}
 
-
 	sqlinsert = ""
 	accounts = make([]Account, 0)
 	rows, err := db.SqlDB.Query("SELECT id,superID FROM go_account")
@@ -191,7 +308,7 @@ func CreateChild() (err error) {
 
 	for rows.Next() {
 		var acc Account
-		rows.Scan(&acc.Uid, &acc.SuperID)
+		rows.Scan(&acc.ID, &acc.SuperID)
 		accounts = append(accounts, acc)
 	}
 	if err = rows.Err(); err != nil {
@@ -200,14 +317,16 @@ func CreateChild() (err error) {
 
 	//fmt.Println(accounts)
 
-	for _,account := range accounts {
-		startID ,_ = strconv.Atoi(account.Uid)
+	for _, account := range accounts {
+		//startID, _ = strconv.Atoi(account.Uid)
+		startID = account.ID
+		sqlinsert += fmt.Sprintf("(%d,%d),", startID, startID)
 		findChildrens(startID)
 	}
-	if len(sqlinsert)>0 {
+	if len(sqlinsert) > 0 {
 		sqlinsert = sqlinsert[0:len(sqlinsert)-1]
 		//fmt.Println(sqlinsert)
-		_, err := db.SqlDB.Exec("INSERT INTO go_account_child(accountID,childID) VALUES "+sqlinsert)
+		_, err := db.SqlDB.Exec("INSERT INTO go_account_child(accountID,childID) VALUES " + sqlinsert)
 		return err
 	}
 	return
@@ -215,20 +334,114 @@ func CreateChild() (err error) {
 }
 
 //查找自己的后代
-func findChildrens(findID int){
-	for _,account := range accounts {
-		if findID == account.SuperID {
+func findChildrens(superID int) {
+	for _, account := range accounts {
+		if superID == account.SuperID {
 			//findID changeed findID=account.ID
 			//fmt.Printf("%d,",account.Uid)
-			id,_:= strconv.Atoi(account.Uid)
-			sqlinsert += fmt.Sprintf("(%d,%d),",startID,id)
+			//id, _ := strconv.Atoi(account.Uid)
+			id := account.ID
+			sqlinsert += fmt.Sprintf("(%d,%d),", startID, id)
 			findChildrens(id)
-		}else {
+		} else {
 			continue
 		}
 	}
 }
 
+var yesTimeUnix int64
+//分成表 生成昨天的分成金额
+func CreateSettlement() (err error) {
+
+	//设置查询的时间:当前是查昨天整天数据
+	nTime := time.Now()
+	yesTimeUnix = nTime.AddDate(0, 0, 0).Unix()
+	yesTime := nTime.AddDate(0, 0, 0).Format("20060102")
+
+	sql := "DELETE FROM go_account_settlement WHERE FROM_UNIXTIME(settledate,'%Y%m%d')=?"
+	rs, err := db.SqlDB.Exec(sql, yesTime)
+	if err != nil {
+		return
+	}
+
+	_, err = rs.RowsAffected()
+	if err != nil {
+		return
+	}
+
+	/***********账户表***********/
+	accounts = make([]Account, 0)
+	rows, err := db.SqlDB.Query("SELECT id,superID,proportions FROM go_account")
+	defer rows.Close()
+
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		var acc Account
+		rows.Scan(&acc.ID, &acc.SuperID, &acc.Proportions)
+		accounts = append(accounts, acc)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	/************销售表**********/
+	saleinfos = make([]SaleInfo, 0)
+	rows, err = db.SqlDB.Query("SELECT a.accountID,a.saleamt,b.superID,b.proportions FROM go_account_sale a LEFT JOIN go_account b ON a.accountID=b.id WHERE FROM_UNIXTIME(saledate,'%Y%m%d')=?", yesTime)
+	defer rows.Close()
+
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		var sale SaleInfo
+		rows.Scan(&sale.AccountID, &sale.SaleAmt, &sale.Account.SuperID, &sale.Account.Proportions)
+		saleinfos = append(saleinfos, sale)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	//fmt.Println(666, len(saleinfos))
+	if len(saleinfos) > 0 {
+		sqlinsert = ""
+		for _, sale := range saleinfos {
+			startID = sale.AccountID
+			proportions := sale.Account.Proportions
+			superID := sale.Account.SuperID
+			selfmoney := sale.SaleAmt * proportions / 100.0
+			supermoney := sale.SaleAmt * (100 - proportions) / 100.0
+			sqlinsert += fmt.Sprintf("(%d,%.2f,%d,%d,0,%.2f),", sale.AccountID, selfmoney, time.Now().Unix(), superID, proportions)
+			findSuperShare(superID, supermoney)
+		}
+
+		sqlinsert = sqlinsert[0:len(sqlinsert)-1]
+		//fmt.Println(sqlinsert)
+		_, err = db.SqlDB.Exec("INSERT INTO go_account_settlement (accountID,amt,settledate,superID,childID,proportions) VALUES " + sqlinsert)
+		//fmt.Println(err)
+	}
+	return
+
+}
+
+//查找自己的祖先并且分账 不允许出现{ID:1,superID:3}{ID:3,superID:1} 这种情况,避免死循环
+func findSuperShare(superID int, superMoney float64) {
+	for _, account := range accounts {
+		if superID == account.ID {
+			minusmoney := superMoney - superMoney*account.Proportions/100.0
+			selfmoney := superMoney * account.Proportions / 100.0
+			//fmt.Printf("(%d,%d,%d,%.2f)\n", startID, account.ID, account.SuperID, account.Proportions)
+			//fmt.Printf("账号：%d=%.2f\n\n",account.ID,selfmoney)
+			sqlinsert += fmt.Sprintf("(%d,%.2f,%d,0,%d,%.2f),", account.ID, selfmoney, time.Now().Unix(), startID, account.Proportions)
+			findSuperShare(account.SuperID, minusmoney)
+		} else {
+			continue
+		}
+	}
+}
 
 //test
 func GetAccount1(uname, pwd string) (string, error) {

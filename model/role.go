@@ -7,6 +7,7 @@ import (
 	//"fmt"
 	"fmt"
 	"strings"
+	"strconv"
 )
 
 type Role struct{
@@ -16,13 +17,19 @@ type Role struct{
 	UpdateIDs string //修改的角色菜单
 }
 
-func (r *Role) GetList() (rat string, err error) {
+func (r *Role) GetList(uid string) (rat string, err error) {
 	sql := "SELECT * FROM go_role where 1=1"
+	roleID := db.RedisGet(uid+"role")
 	var args []interface{}
-	if r.ID != "" {
-		sql += " and id=?"
-		args = append(args,r.ID)
+	if roleID != "" {
+		sql += " and id >= ?"
+		x, err := strconv.Atoi(roleID)
+		if err != nil{
+			return "",err
+		}
+		args = append(args,x)
 	}
+	sql += " order by id desc"
 	rat, err = tool.DBResultTOJSON(sql,args...)
 	//fmt.Printf("sql=%s,err=%s,r.ID=%s \n",sql,err,r.ID)
 	return

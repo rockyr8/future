@@ -20,6 +20,7 @@ func initRouter() *gin.Engine {
 
 	//test
 	router.GET("/cd", CreateChildAPI)
+	router.GET("/c1", CreateSettlementAPI)
 
 	// router.GET("/login/:key", AccountLoginApi)
 
@@ -48,6 +49,10 @@ func initRouter() *gin.Engine {
 		authorized.POST("/account", GetAccountListAPI)
 		//查询用户
 		authorized.POST("/account/detail", GetAccountDetailAPI)
+		//查询用户银行信息
+		authorized.POST("/account/bank", GetAccountBankDetailAPI)
+		//修改银行信息
+		authorized.POST("/account/bank/modify", OperateAccountBankAPI)
 		//添加用户
 		authorized.POST("/account/add", OperateAccountAPI)
 		//修改用户

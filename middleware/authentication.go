@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"fmt"
+	//"fmt"
 	"net/http"
 	"time"
 
@@ -67,17 +67,17 @@ func AuthLogicMiddleWare(c *gin.Context) {
 	}
 
 	//终止当前访问
-	c.String(http.StatusOK, "Unauthorized")
+	c.String(http.StatusOK, "Unauthorized"+common.PermissionVerification)
 	c.Abort()
 }
 
 //续租方法：剩余5分钟开始续租，续租时间25分钟。
 func renew(uid string, token string) {
 	ms := int64(db.RedisClient.TTL(uid).Val() / time.Second)
-	fmt.Println("renew", ms)
+	//fmt.Println("renew", ms)
 	if ms < int64(common.RemainRenewalTime) && ms > 0 {
 		db.RedisSet(uid, token, common.RenewalTime)
-		fmt.Println("ms=", ms)
+		//fmt.Println("ms=", ms)
 		GetAcceseAuth(uid, common.RenewalTime, 0)
 	}
 }
